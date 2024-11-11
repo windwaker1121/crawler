@@ -1,0 +1,2 @@
+serial      ,serial, PRIMARY KEY
+date        ,date, UNIQUE

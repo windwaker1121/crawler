@@ -9,7 +9,7 @@ from header import generate_random_header
 import requests
 from util import combine_index, preprocess
 host = "172.128.0.2"
-dbname = "postgres"
+dbname = "stock"
 user = "stadmin"
 password = "stadmin"
 sslmode = "allow"
