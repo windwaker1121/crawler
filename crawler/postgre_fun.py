@@ -31,20 +31,34 @@ def close():
 def get_cursor():
     return cursor 
 
-def insert(table_name, properityes, values):
+def insert(table_name:str, properityes:list, values:list, PK:str=None):
     assert len(properityes) ==len(values), "the number of properityes and values are not equal "+str(len(properityes))+"-"+str(len(values))
 
     SQL = "INSERT INTO "+table_name+" "
-    if len(properityes) == 1:
-        SQL = SQL+str(tuple(properityes)).replace("'","").replace(",","") + " VALUES "
-        SQL = SQL+str(tuple(values)).replace(",","")#.replace("'","")
+    SQL+= "(" + ", ".join(properityes) + ") VALUES (" + ", ".join(["%s"]*len(properityes)) +")"
+
+    # if len(properityes) == 1:
+    #     SQL = SQL+str(tuple(properityes)).replace("'","").replace(",","") + " VALUES "
+    #     SQL = SQL+str(tuple(values)).replace(",","")#.replace("'","")
+    # else:
+    #     SQL = SQL+str(tuple(properityes)).replace("'","") + " VALUES "
+    #     SQL = SQL+str(tuple(values))#.replace("'","")
+    if PK is not None:
+        SQL = SQL+" ON CONFLICT DO NOTHING RETURNING "+PK+";"
     else:
-        SQL = SQL+str(tuple(properityes)).replace("'","") + " VALUES "
-        SQL = SQL+str(tuple(values))#.replace("'","")
-    
-    SQL = SQL+";"
-    print(SQL)
-    cursor.execute(SQL)
+        SQL = SQL+" ON CONFLICT DO NOTHING;"
+    # print(SQL)
+    cursor.execute(SQL, tuple(values))
+    try:
+        insert = cursor.fetchall()
+        conn.commit()
+        if len(insert)> 0:
+            return insert[0][0]
+    except Exception as e:
+        print(e, "nothing to insert")
+        conn.rollback()
+
+    return None
 
 def commit(): 
     conn.commit()
@@ -61,7 +75,7 @@ def check_table(db_name, table_name):
             table_name = '"+table_name+"'\
         );"
     cursor.execute(SQL)
-    print(SQL)
+    # print(SQL)
     results = cursor.fetchall() 
     return results[0][0]
 
@@ -75,11 +89,16 @@ def create_table(table_name, columns):
             # date            date
     COLUMNS_STRING = []
     for c in columns:
-        print(c)
+        # print(c)
         COLUMNS_STRING.append(" ".join(c))
     SQL+= ",".join(COLUMNS_STRING)+");"
-    cursor.execute(SQL)
-    print(SQL)
+    try:
+        cursor.execute(SQL)
+        conn.commit()
+        # print(SQL)
+    except Exception as e:
+        print(e)
+        conn.rollback()
 
 def add_column(table_name, col_name, tar_type):
     SQL="\
@@ -219,19 +238,14 @@ def query_data(table:str, cols:list, where:dict=None):
         WHERE += ' and '.join(where_item)
         if len(where_item)>0:
             SQL += WHERE
-    print(SQL)
     cursor.execute(SQL)
     try:
         query = cursor.fetchall()
-        print(query)
-        conn.commit()
+        # print(query)
         if len(query)> 0:
             return query
     except Exception as e:
-        print(e, "nothing to update")
-        conn.rollback()
-
-    return None
+        return None
 
 def update_data(table:str, data:dict, where:dict):
     SQL = "\
@@ -285,19 +299,20 @@ def delete_data(table, where):
     WHERE += ' and '.join(where_item)
     SQL += WHERE
     SQL += " returning "+list(where.keys())[0]+";"
-    print(SQL)
+    # print(SQL)
     cursor.execute(SQL)
     try:
         update = cursor.fetchall()
-        print(update)
+        # print(update)
         conn.commit()
         if len(update)> 0:
             return update
     except Exception as e:
-        print(e, "nothing to update")
+        print(e, "nothing to delete")
         conn.rollback()
 
     return None
+
 def search_user(search=None, orderby=None, pagedatas=10000, page=0):
     SQL = "\
         select username, email, organization, authority, activate\
@@ -351,7 +366,7 @@ def update_file(table, key:dict, bytefile:dict):
         conn.commit()
         return True
     except Exception as e:
-        print(e, "nothing to update")
+        print(e, "no file to update")
         conn.rollback()
     return False
 
@@ -366,7 +381,7 @@ def get_file(table, key:dict, column_name):
         res = cursor.fetchone()
         return str(psycopg2.Binary(res[0]))[1:-8]
     except Exception as e:
-        print(e, "nothing to update")
+        print(e, "nothing get_file")
         conn.rollback()
     return None
 
@@ -397,7 +412,7 @@ def login_check(username, password, usertype='user'):
                 "+activate_str+"\
         );"
     
-    print(SQL)
+    # print(SQL)
     try:
         cursor.execute(SQL)
         # results = cursor.fetchall() 
@@ -412,4 +427,3 @@ def login_check(username, password, usertype='user'):
         msg = str(e)
         print(msg)
     return 1312
-

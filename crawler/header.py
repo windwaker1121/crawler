@@ -1,5 +1,34 @@
 import random
 import copy
+
+name2colname = {
+    '證券代號':"stock_id",
+    '證券名稱':"stock_name",
+    '成交股數':"volume",
+    '成交筆數':"tick_number",
+    '成交金額':"total_price",
+    '收盤價':"close",
+    '開盤價':"open",
+    '最低價':"low",
+    '最高價':"high",
+    '最後揭示買價':"last_buy",
+    '最後揭示賣價':"last_sell",
+}
+
+o2tp = {
+        '代號':'證券代號',
+        '名稱':'證券名稱',
+        '成交股數':'成交股數',
+        '成交筆數':'成交筆數',
+        '成交金額(元)':'成交金額',
+        '收盤':'收盤價',
+        '開盤':'開盤價',
+        '最低':'最低價',
+        '最高':'最高價',
+        '最後買價':'最後揭示買價',
+        '最後賣價':'最後揭示賣價',
+      }
+
 def generate_random_header():
     random_user_agents = {'chrome': ['Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36',
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.1 Safari/537.36',
