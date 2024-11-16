@@ -10,7 +10,7 @@ services:
       APP_NAME: FlaskApp
       TZ: 
     ports:
-      - 8080:8080
+      - 8090:8080
     volumes:
       - ./crawler:/app
       - ./postgres/schema:/schema
@@ -24,21 +24,14 @@ services:
     build: ./postgres
     restart: always
     container_name: postgres_crawler
-    environment:
-      TZ: 
-      POSTGRES_DB: 
-      POSTGRES_USER: 
-      POSTGRES_PASSWORD: 
-    # env_file:
-    #   - ./.env.DB
+    env_file:
+      - .env.sql
     volumes:
       # - ./db-data:/var/lib/postgresql/data
       - db-data:/var/lib/postgresql/data
       # - ./postgres/template.conf:/var/lib/postgresql/data/postgresql.conf
-    # expose:
-    #   - 5432
-    ports:
-      - "5432:5432"
+    expose:
+      - 5432
     networks:
       app_net:
         ipv4_address: 172.128.0.2
@@ -46,16 +39,13 @@ services:
   pgadmin:
     image: dpage/pgadmin4:latest
     restart: always
-    environment:
-      TZ: 
-      PGADMIN_DEFAULT_EMAIL: 
-      PGADMIN_DEFAULT_PASSWORD: 
-      PGADMIN_LISTEN_PORT: 
+    env_file:
+      - .env.pgadmin
     ports:
-      - "8081:80"
+      - "8082:80"
     volumes:
-      - pgadmin-data:/var/lib/postgresql/data
-    #   - ./pgadmin-data:/var/lib/pgadmin
+      # - pgadmin-data:/var/lib/postgresql/data
+      - ./pgadmin-data:/var/lib/pgadmin
     links:
       - "postgres:pgsql-server"
     networks:
@@ -65,8 +55,7 @@ services:
 
 volumes:
     db-data:
-    pgadmin-data:
-
+    # pgadmin-data:
 
 networks:
   app_net:

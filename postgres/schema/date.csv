@@ -1,2 +1,4 @@
 serial      ,serial, PRIMARY KEY
 date        ,date, UNIQUE
+twse        ,bytea
+tpex        ,bytea
