@@ -1,3 +1,5 @@
+import base64
+import pickle
 import psycopg2
 import os
 import csv
@@ -17,6 +19,7 @@ while not connect_succes:
         conn = psycopg2.connect(conn_string)
         print("Connection established")
         cursor = conn.cursor()
+        conn.rollback()
         connect_succes = True
     except:
         
@@ -31,33 +34,64 @@ def close():
 def get_cursor():
     return cursor 
 
+def str2db_byte(text_obj):
+    csv_pickle = pickle.dumps(text_obj)
+    return base64.b64encode(csv_pickle).decode('utf-8')
+
+def db_byte2str(byte_obj):
+    csv_pickle = base64.b64decode(byte_obj)#.decode('utf-8')
+    return pickle.loads(csv_pickle)
+
 def insert(table_name:str, properityes:list, values:list, PK:str=None):
     assert len(properityes) ==len(values), "the number of properityes and values are not equal "+str(len(properityes))+"-"+str(len(values))
 
     SQL = "INSERT INTO "+table_name+" "
     SQL+= "(" + ", ".join(properityes) + ") VALUES (" + ", ".join(["%s"]*len(properityes)) +")"
 
-    # if len(properityes) == 1:
-    #     SQL = SQL+str(tuple(properityes)).replace("'","").replace(",","") + " VALUES "
-    #     SQL = SQL+str(tuple(values)).replace(",","")#.replace("'","")
+    SQL = SQL+" ON CONFLICT("+PK+") DO UPDATE SET "
+    SQL = SQL + ", ".join([p+"="+"%s" for p in properityes])
+    SQL = SQL+" RETURNING true;"
+    
+    # if PK is not None:
+    #     SQL = SQL+" ON CONFLICT DO NOTHING RETURNING "+PK+";"
     # else:
-    #     SQL = SQL+str(tuple(properityes)).replace("'","") + " VALUES "
-    #     SQL = SQL+str(tuple(values))#.replace("'","")
-    if PK is not None:
-        SQL = SQL+" ON CONFLICT DO NOTHING RETURNING "+PK+";"
-    else:
-        SQL = SQL+" ON CONFLICT DO NOTHING;"
-    # print(SQL)
-    cursor.execute(SQL, tuple(values))
-    try:
-        insert = cursor.fetchall()
-        conn.commit()
-        if len(insert)> 0:
-            return insert[0][0]
-    except Exception as e:
-        print(e, "nothing to insert")
-        conn.rollback()
-
+    #     SQL = SQL+" ON CONFLICT DO NOTHING RETURNING true;"
+    # print(SQL%tuple(values+values))
+    # check = None
+    retry = -1
+    results = None
+    while True:
+        retry += 1
+        try:
+            cursor.execute(SQL, tuple(values+values))
+            conn.commit()
+            # print(cursor.fetchone())
+            results = cursor.fetchone()
+            if results is None:
+                # print(table_name, "update faild try again", retry)
+                time.sleep(0.15)
+                continue
+            # print(results)
+            if len(results)>0 and results[0] == True:
+                # conn.commit()
+                return True
+            # elif len(results)<=0:
+            # print(table_name, results)
+            
+            # check = query_data(table_name, properityes, {'date': [values[0]]})
+            # # print(table_name, check)
+            # if check is not None and len(check)>0:
+            #     # conn.commit()
+            #     return True
+        except Exception as e:
+            print(table_name, "insert", retry, values[0], "| msg:", e)#, SQL%tuple(values))
+            # conn.rollback()
+            # check = query_data(table_name, properityes, {'date': [values[0]]})
+            # print(check)
+            # if check and len(check) > 0:
+            #     return "OK"
+        time.sleep(0.15)
+        # print(table_name, 'retry', results, retry)#, SQL%tuple(values+values))
     return None
 
 def commit(): 
@@ -66,18 +100,44 @@ def commit():
 def rollback(): 
     conn.rollback()
 
+def dataParase(sqlrow):
+    if len(sqlrow) == 1:
+        return sqlrow[0]
+    else:
+        return list(sqlrow)
+
+def query_by_SQL(SQL):
+    while True:
+        try:
+            cursor.execute(SQL)
+            res = list(map(dataParase, cursor.fetchall())) 
+            return res
+        except Exception as e:
+            print("query_by_SQL:", e);exit()
+
+        time.sleep(0.3)
+
 def check_table(db_name, table_name):
     SQL= \
-        "SELECT EXISTS(\
+        "select exists(\
             SELECT * \
             FROM information_schema.tables \
             WHERE \
-            table_name = '"+table_name+"'\
+            table_name = '"+table_name.lower()+"'\
         );"
-    cursor.execute(SQL)
-    # print(SQL)
-    results = cursor.fetchall() 
-    return results[0][0]
+    while True:
+        try:
+            cursor.execute(SQL)
+            # print(SQL)
+            results = list(map(dataParase, cursor.fetchall()))
+            if len(results)>0 and results[0] == True:
+                return True
+            else:
+                return False
+            
+        except Exception as e:
+            print("check_table", table_name, " | mes:", e)
+        time.sleep(0.5)
 
 def create_table(table_name, columns):
     SQL = "CREATE TABLE "+table_name+" ("
@@ -92,13 +152,19 @@ def create_table(table_name, columns):
         # print(c)
         COLUMNS_STRING.append(" ".join(c))
     SQL+= ",".join(COLUMNS_STRING)+");"
-    try:
-        cursor.execute(SQL)
-        conn.commit()
-        # print(SQL)
-    except Exception as e:
-        print(e)
-        conn.rollback()
+    created = check_table(dbname, table_name)
+    while not created:
+        try:
+            cursor.execute(SQL)
+            conn.commit()
+            return
+            # print(SQL)
+        except Exception as e:
+            print(e, "conn.rollback()", "create_table")
+            conn.rollback()
+        created = check_table(dbname, table_name)
+        print(created)
+        time.sleep(0.5)
 
 def add_column(table_name, col_name, tar_type):
     SQL="\
@@ -238,8 +304,8 @@ def query_data(table:str, cols:list, where:dict=None):
         WHERE += ' and '.join(where_item)
         if len(where_item)>0:
             SQL += WHERE
-    cursor.execute(SQL)
     try:
+        cursor.execute(SQL)
         query = cursor.fetchall()
         # print(query)
         if len(query)> 0:
@@ -304,12 +370,12 @@ def delete_data(table, where):
     try:
         update = cursor.fetchall()
         # print(update)
-        conn.commit()
+        # conn.commit()
         if len(update)> 0:
             return update
     except Exception as e:
         print(e, "nothing to delete")
-        conn.rollback()
+        # conn.rollback()
 
     return None
 
@@ -361,13 +427,15 @@ def update_file(table, key:dict, bytefile:dict):
     "
     # print(SQL)
     # print(list(bytefile.items())[0][1])
-    cursor.execute(SQL)
-    try:
-        conn.commit()
-        return True
-    except Exception as e:
-        print(e, "no file to update")
-        conn.rollback()
+    while True:
+        try:
+            cursor.execute(SQL)
+            conn.commit()
+            return True
+        except Exception as e:
+            print(e, "no file to update")
+            conn.rollback()
+        time.sleep(0.1)
     return False
 
 def get_file(table, key:dict, column_name):

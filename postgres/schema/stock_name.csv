@@ -1,0 +1,2 @@
+name        ,varchar, PRIMARY KEY UNIQUE
+stock_id    ,varchar

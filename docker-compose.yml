@@ -8,7 +8,7 @@ services:
     #   - ./.env.FLA
     environment:
       APP_NAME: FlaskApp
-      TZ: 
+      TZ: Asia/Taipei
     ports:
       - 8090:8080
     volumes:
@@ -28,7 +28,8 @@ services:
       - .env.sql
     volumes:
       # - ./db-data:/var/lib/postgresql/data
-      - db-data:/var/lib/postgresql/data
+      # - db-data:/var/lib/postgresql/data
+      - db-data2:/var/lib/postgresql/data
       # - ./postgres/template.conf:/var/lib/postgresql/data/postgresql.conf
     expose:
       - 5432
@@ -54,7 +55,7 @@ services:
 
 
 volumes:
-    db-data:
+    db-data2:
     # pgadmin-data:
 
 networks:
