@@ -29,6 +29,20 @@ o2tp = {
         '最後賣價':'最後揭示賣價',
       }
 
+o2tp_b2007 = {
+        '股票代號':'證券代號',
+        '證券名稱':'證券名稱',
+        '成交股數':'成交股數',
+        '成交筆數':'成交筆數',
+        '成交金額(元)':'成交金額',
+        '收盤價':'收盤價',
+        '開盤價':'開盤價',
+        '最低價':'最低價',
+        '最高價':'最高價',
+        '最後委買價':'最後揭示買價',
+        '最後委賣價':'最後揭示賣價',
+      }
+
 def generate_random_header():
     random_user_agents = {'chrome': ['Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36',
       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2227.1 Safari/537.36',

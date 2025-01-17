@@ -13,6 +13,7 @@ services:
       - 8090:8080
     volumes:
       - ./crawler:/app
+      - ./history:/app/history
       - ./postgres/schema:/schema
     depends_on:
       - postgres
