@@ -26,17 +26,16 @@ args = parser.parse_args()
 ~2008/12/31
 2009/01/01~
 '''
-twe_url = 'https://www.twse.com.tw/exchangeReport/MI_INDEX?response=csv&type=ALLBUT0999&date='
+twe_url = 'https://www.twse.com.tw/rwd/zh/afterTrading/BWIBBU_d?selectType=ALL&response=csv&date='
 
 '''
 上櫃:
-~2007/01/01
-2007/01/02-2007/04/20
-2007/04/21~
+2003/08/01-2006/12/31
+2007/01/01~
 '''
-otc_url = 'https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotes?id=&response=csv&date='
+otc_url = 'https://www.tpex.org.tw/www/zh-tw/afterTrading/peQryDate?id=&response=utf-8&cate=&date='
 old_2007_otc_url = "https://www.tpex.org.tw/www/zh-tw/afterTrading/dailyQuotesHis?id=&response=csv&date="
-old_b2007_otc_url = "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/DAILY_CLOSE_QUOTES/RSTA3104_%s.HTML"
+old_b2007_otc_url = "https://hist.tpex.org.tw/Hist/STOCK/AFTERTRADING/PERATIO_ANALYSIS/RSTA3103_%s.HTML"
 # host = "172.128.0.2"
 dbname = "stock"
 # user = "admin"
@@ -105,9 +104,7 @@ class csv_parser(object):
         # get current session
         stock_type = args1[1]
         args1 = (args1[0],)
-        # if stock_type == 'twse':
-        #     self.find_best_session(stock_type)
-        # if stock_type == 'tpex':
+
         self.find_best_session(stock_type)
         # download data
         i = 10
@@ -158,7 +155,9 @@ class csv_parser(object):
             # if self.csv:
             #     update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'twse': str2db_byte(res_text)})
             # print(res_text)
-        if res_text == '':
+        # res_text = res_text.replace('\n', "")
+
+        if res_text == '' or len(res_text.replace("\n", "")) == 0:
             return pd.DataFrame()
         string_date = res_text.split('\n')[0]
         string_date = string_date.replace('"', '')
@@ -189,7 +188,7 @@ class csv_parser(object):
             res_text = res_text.replace('="','"').replace(',\n', '\n')
             header = np.where(list(map(lambda l: '"證券代號"' in l, res_text.split('\n')[:500])))[0][0]
         
-        df = pd.read_csv(StringIO(res_text), header=header-2)
+        df = pd.read_csv(StringIO(res_text), header=header)
         return df      
 
     def price_twse_2008(self):
@@ -260,14 +259,21 @@ class csv_parser(object):
         if self.tpex_byte is None:
             while True:
                 res = self.requests_get(link, "tpex")
+                
+
                 if res.status_code != 200:
                     time.sleep(10)
                     continue
                 elif res.status_code == 200 and len(res.text.replace(" ", "")) == 0:
                     # update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte("")})
                     return pd.DataFrame()
+                elif "Content-Disposition" in res.headers.keys():
+                        filename = re.findall('filename="(.+)"', res.headers["Content-Disposition"])[0]
+                        if str(self.date).replace("-", "")[-4:] not in filename:
+                            return pd.DataFrame()
                 if type(res) is not requests.models.Response: return pd.DataFrame()
                 res_text = res.text
+                
                 break
             self.tpex_res_text = res_text
             # update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte(res_text)})
@@ -277,28 +283,17 @@ class csv_parser(object):
             #     update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte(res_text)})
 
             # print(res_text)
-        if '上櫃家數,"0"' in res_text: return pd.DataFrame()
 
-        if '管理股票' in res_text:
-            res_text = res_text.replace('\r\n', '\n')
-            reguler = res_text.split('管理股票')[0]
-            managed = res_text.split('管理股票')[1]
-            if '"註：' in managed:
-                managed = managed.split('"註：')[0]
+        df = pd.read_csv(StringIO(res_text), header=3)
         
-            try:
-                df_re = pd.read_csv(StringIO(reguler), header=2)
-                df_ma = pd.read_csv(StringIO(managed), header=0)
-                df = pd.concat((df_re, df_ma))
-            except Exception as e:
-                print(e, res_text)
-                return pd.DataFrame()
-        else:
-            try:
-                df = pd.read_csv(StringIO(res_text), header=2)
-            except Exception as e:
-                print(e, res_text)
-                return pd.DataFrame()
+        if '上櫃家數,"0"' in res_text: return pd.DataFrame()
+        try:
+            df = pd.read_csv(StringIO(res_text), header=3)
+            if df['公司名稱'].iloc[-1] != df['公司名稱'].iloc[-1]:
+                df = df.head(-1)
+        except Exception as e:
+            print(e, res_text)
+            return pd.DataFrame()
         return df
 
     def price_tpex_b20041027(self):
@@ -627,6 +622,11 @@ class csv_parser(object):
         return df
 
     def merge(self, twe, otc, t2o):
+        # if self.date_time <= datetime.datetime(2007,1,1):
+        #     t2o2_b2007 = {k:v for k,v in o2tp_b2007.items() if k in otc.columns}
+        #     otc = otc[list(t2o2_b2007.keys())]
+        #     otc = otc.rename(columns=t2o2_b2007)
+        # else:
         t2o2 = {k:v for k,v in t2o.items() if k in otc.columns}
         otc = otc[list(t2o2.keys())]
         otc = otc.rename(columns=t2o2)
@@ -634,6 +634,8 @@ class csv_parser(object):
         join = set(otc.columns).intersection(set(twe.columns))
         twe = twe[list(join)]
         # print(twe.columns)
+        # otc["證券代號"] = np.str_(otc["證券代號"].values)
+        twe["證券代號"] = twe["證券代號"].astype(str)
 
         return pd.concat([twe, otc[otc.columns]], ignore_index=True)
 
@@ -678,22 +680,22 @@ class csv_parser(object):
 
     def crawl_price(self):
         print("begin crawl ...")
-        if self.date_time <= datetime.datetime(2008,12,31):
-            dftwe_func = self.price_twse_2008
-        elif datetime.datetime(2009,1,1) <= self.date_time:
-            dftwe_func = self.price_twse
+        # if self.date_time <= datetime.datetime(2008,12,31):
+        #     dftwe_func = self.price_twse_2008
+        # elif datetime.datetime(2009,1,1) <= self.date_time:
+        dftwe_func = self.price_twse
         self.dftwe = dftwe_func()
         # time.sleep(1)
-        if self.date_time <= datetime.datetime(2004,10,27):
-            dfotc_func = self.price_tpex_b20041027
-        elif datetime.datetime(2004,10,28) <= self.date_time and self.date_time <= datetime.datetime(2004,11,24):
-            dfotc_func = self.price_tpex_b2004
-        elif datetime.datetime(2004,11,25) <= self.date_time and self.date_time <= datetime.datetime(2007,1,1):
-            dfotc_func = self.price_tpex_b2007
-        elif datetime.datetime(2007,1,2) <= self.date_time and self.date_time <= datetime.datetime(2007,4,20):
-            dfotc_func = self.price_tpex_2007
-        else:
-            dfotc_func = self.price_tpex
+        # if self.date_time <= datetime.datetime(2004,10,27):
+        #     dfotc_func = self.price_tpex_b20041027
+        # elif datetime.datetime(2004,10,28) <= self.date_time and self.date_time <= datetime.datetime(2004,11,24):
+        #     dfotc_func = self.price_tpex_b2004
+        # elif datetime.datetime(2004,11,25) <= self.date_time and self.date_time <= datetime.datetime(2007,1,1):
+        #     dfotc_func = self.price_tpex_b2007
+        # elif datetime.datetime(2007,1,2) <= self.date_time and self.date_time <= datetime.datetime(2007,4,20):
+        #     dfotc_func = self.price_tpex_2007
+        # else:
+        dfotc_func = self.price_tpex
         self.dfotc = dfotc_func()
         # print(self.dftwe)
         # print(dfotc)
@@ -719,14 +721,14 @@ class csv_parser(object):
             print("self.twse_res_text", self.twse_res_text)
             exit()
         elif len(self.dftwe) != 0:
-            update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'twse': str2db_byte(self.twse_res_text)})
+            update_file('pe_date', {'date': self.date.strftime('%Y-%m-%d')}, {'twse': str2db_byte(self.twse_res_text)})
 
         if len(self.dfotc) == 0:
             print("上櫃資料有問題", self.date, self.tpex_url)
             print("self.tpex_res_text", self.tpex_res_text)
             exit()
         elif len(self.dfotc) != 0:
-            update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte(self.tpex_res_text)})
+            update_file('pe_date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte(self.tpex_res_text)})
 
     def iterfunc(self, i_price):
         # if len(re.findall(r'[A-Z]{1}[0-9]{1}$', i_price["證券代號"]))>0: return
@@ -738,15 +740,17 @@ class csv_parser(object):
         
         property_name = ['date']
         property_value = [str(self.date.strftime('%Y-%m-%d'))]
-
         for c in self.price_columns:
             # print(c)
-            if c in ["成交金額", "成交股數", "成交筆數"]:
-                try:
-                    value = float(i_price[c].replace(',',""))
-                except Exception as e:
-                    print(e, 'set to nan')
-                    value = float('nan')
+            if c in ["殖利率(%)", "股價淨值比", "本益比"]:
+                if type(i_price[c]) not in [np.float64, np.float32, float]:
+                    try:
+                        value = float(i_price[c].replace(',',""))
+                    except Exception as e:
+                        print(e, 'set to nan')
+                        value = float('nan')
+                else:
+                    value = i_price[c]
                 property_value.append(value)
             elif c in ["證券名稱", "證券代號"]: continue
             else:
@@ -764,9 +768,10 @@ class csv_parser(object):
         # print(idx)
         # print(property_name)
         # print(property_value)
+        # exit()
         # print(["date"]+idx, [str(self.date.strftime('%Y/%m/%d'))] + list(map(lambda x: price.loc[i][x] ,idx)))
         res = insert("s_"+i_price["證券代號"].lower(), property_name, property_value, 'date')
-        
+
         return
 
     def update(self):
@@ -784,7 +789,7 @@ def cosumer():
             obj = Update_Queue.get_nowait()
             if obj is not None:
                 obj.update()
-                update_data('date', {'done': "true"}, {"date": str(obj.date.strftime('%Y-%m-%d'))})
+                update_data('pe_date', {'done': "true"}, {"date": str(obj.date.strftime('%Y-%m-%d'))})
                
             else:
                 obj = 0
@@ -819,7 +824,7 @@ if __name__ == "__main__":
         twse_byte, tpex_byte, done = None, None, False
         # while q_res is None or len(q_res)<1:
 
-        q_res = query_data("date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
+        q_res = query_data("pe_date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
         if q_res is not None:
             try:
                 twse_byte, tpex_byte, done = q_res[0]
@@ -832,7 +837,7 @@ if __name__ == "__main__":
             except:
                 print(q_res)
         else:
-            update_file('date', {'date': str(date_time.date())}, {'twse': str2db_byte(""), 'tpex': str2db_byte("")})
+            update_file('pe_date', {'date': str(date_time.date())}, {'twse': str2db_byte(""), 'tpex': str2db_byte("")})
         #     insert("date", ['date'], [str(date_time.date())], "date")
         # print("twse_byte, tpex_byte, done", twse_byte, tpex_byte, done)#;exit()
         if done: 
@@ -842,17 +847,17 @@ if __name__ == "__main__":
 
         if len(args.csv) > 0:
             date_str = str(date_time).split(' ')[0].replace("-", "_")
-            history_name_twse = date_str + "_twse.txt"
+            history_name_twse = date_str + "_twse_pe.txt"
             if twse_byte is None and history_name_twse in os.listdir(args.csv):
                 with open(os.path.join(args.csv, history_name_twse), "r") as f:
                     twse_byte = str2db_byte(f.read()) 
-                print('twse history file exist.')
+                print('twse pe history file exist.')
 
-            history_name_tpex = date_str + "_tpex.txt"
+            history_name_tpex = date_str + "_tpex_pe.txt"
             if tpex_byte is None and history_name_tpex in os.listdir(args.csv):
                 with open(os.path.join(args.csv, history_name_tpex), "r") as f:
                     tpex_byte = str2db_byte(f.read())
-                print('tpex history file exist.')
+                print('tpex pe history file exist.')
         
         obj = csv_parser(datetime.date(date_time.year, date_time.month, date_time.day), twse_byte, tpex_byte, csv=len(args.csv)>0)
         if not done:
@@ -865,7 +870,7 @@ if __name__ == "__main__":
             # Update_Queue.put(obj)
             obj.update()
             obj.update_file_data()
-            update_data('date', {'done': "true"}, {"date": str(obj.date.strftime('%Y-%m-%d'))})
+            update_data('pe_date', {'done': "true"}, {"date": str(obj.date.strftime('%Y-%m-%d'))})
 
 
             # time.sleep(2)

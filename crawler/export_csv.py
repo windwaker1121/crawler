@@ -6,6 +6,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--output-dir", default="history/txt", help="the export csv dir path")
 parser.add_argument("--date", default=None, help="Start date")
+parser.add_argument("--type", default='date', help="export data type: date open/close/high/low, pe, rev")
 args = parser.parse_args()
 if __name__ == "__main__":
     date_time = datetime.datetime.now()
@@ -31,7 +32,13 @@ if __name__ == "__main__":
         q_res = []
         twse_byte, tpex_byte, done = None, None, False
         # while q_res is None or len(q_res)<1:
-        q_res = query_data("date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
+        if args.type == 'rev':
+            # q_res = query_data("date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
+            exit()
+        elif args.type == 'pe':
+            q_res = query_data("pe_date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
+        else:
+            q_res = query_data("date", ['twse', 'tpex', 'done'], {'date':[str(date_time.date())]})
         if q_res is not None:
             try:
                 twse_byte, tpex_byte, done = q_res[0]
