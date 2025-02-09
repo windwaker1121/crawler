@@ -284,6 +284,7 @@ class csv_parser(object):
             #     update_file('date', {'date': self.date.strftime('%Y-%m-%d')}, {'tpex': str2db_byte(res_text)})
 
             # print(res_text)
+        if len(res_text) <= 0: return pd.DataFrame()
 
         df = pd.read_csv(StringIO(res_text), header=3)
         
@@ -863,13 +864,13 @@ if __name__ == "__main__":
 
         if len(args.csv) > 0:
             date_str = str(date_time).split(' ')[0].replace("-", "_")
-            history_name_twse = date_str + "_twse_pe.txt"
+            history_name_twse = date_str + "_twse.txt"
             if twse_byte is None and history_name_twse in os.listdir(args.csv):
                 with open(os.path.join(args.csv, history_name_twse), "r") as f:
                     twse_byte = str2db_byte(f.read()) 
                 print('twse pe history file exist.')
 
-            history_name_tpex = date_str + "_tpex_pe.txt"
+            history_name_tpex = date_str + "_tpex.txt"
             if tpex_byte is None and history_name_tpex in os.listdir(args.csv):
                 with open(os.path.join(args.csv, history_name_tpex), "r") as f:
                     tpex_byte = str2db_byte(f.read())

@@ -256,8 +256,12 @@ def month_revenue(name, date):
     except:
         print('MONTH ' + name + ': cannot parse ' + str(date))
         return pd.DataFrame()
-
-    df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
+    
+    if date == datetime.datetime(year=2012, month=1, day=1):
+        df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5 and 'levels' in dir(df.columns)])
+        df.columns = df.columns.get_level_values(1)
+    else:
+        df = pd.concat([df for df in dfs if df.shape[1] <= 11 and df.shape[1] > 5])
     
     if 'levels' in dir(df.columns):
         df.columns = df.columns.get_level_values(1)
