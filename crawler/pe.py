@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 parser = argparse.ArgumentParser()
 parser.add_argument("--csv", default="", help="Use exist csv file for dir.")
 parser.add_argument("--date", default=None, help="Start date")
+parser.add_argument("--daily", action='store_true', help="Start date")
 args = parser.parse_args()
 
 '''
@@ -296,7 +297,7 @@ class csv_parser(object):
             return pd.DataFrame()
         return df
 
-    def price_tpex_b20041027(self):
+    def price_tpex_b20061231(self):
         # date_str = self.date.strftime('%Y/%m/%d')
         date_str = str(self.date.year - 1911)+str(self.date.month).zfill(2)+str(self.date.day).zfill(2)
         # tpex_csv = get_file('date', {'date': self.date.strftime('%Y-%m-%d')}, 'tpex')
@@ -349,19 +350,19 @@ class csv_parser(object):
             dfs = pd.read_html(StringIO(res_text))
             for i, df in enumerate(dfs):
                 df = df[8:-3]
-                
-                df = df[[0, 6, 10, 16, 21, 26, 31, 35, 39, 44, 49, 54, 60]]
-                df.columns = columns
+                # df = df[[0, 1, 2, 16, 21, 26, 31, 35, 39, 44, 49, 54, 60]]         
+                df.columns = ["證券代號", "證券名稱", "本益比", "殖利率(%)", "股價淨值比"]
                 dfs[i] = df
+            
             for i in dfs[1:]:
                 dfs[0] = pd.concat((dfs[0], i))
             df = dfs[0]
-            df['均價'][df['均價']=='註'] = '0.0'
+            # df['均價'][df['均價']=='註'] = '0.0'
             
             # print(df['均價'].dtype);exit()
-            df.index = np.arange(len(df)) 
+            # df.index = np.arange(len(df)) 
             # df = df.reset_index().set_index('股票代號')
-            # print(df);exit()
+            
             exc_index = []
             for r, row in enumerate(df.iterrows()):
                 if df.loc[row[0]].values[0] in ["＊＊＊＊＊ 二類股票 ＊＊＊＊＊", "＊＊＊＊＊ 管理股票 ＊＊＊＊＊", np.nan]:
@@ -371,26 +372,26 @@ class csv_parser(object):
             index = list(df.index.values.copy())
             for i in exc_index:
                 index.remove(i)
-            df = df[df['股票代號']!="＊＊＊＊＊ 二類股票 ＊＊＊＊＊"]
-            df = df[df['股票代號']!="＊＊＊＊＊ 管理股票 ＊＊＊＊＊"]
-            df = df[df['股票代號']==df['股票代號']]
-            for col in [
-                "收盤價",
-                "開盤價",
-                "最高價",
-                "最低價",
-                '均價',
-                "最後委買價",
-                "最後委賣價",
-            ]:
-                df[col] = df[col].values.astype(float)
+            # df = df[df['股票代號']!="＊＊＊＊＊ 二類股票 ＊＊＊＊＊"]
+            # df = df[df['股票代號']!="＊＊＊＊＊ 管理股票 ＊＊＊＊＊"]
+            # df = df[df['股票代號']==df['股票代號']]
+            # for col in [
+            #     "收盤價",
+            #     "開盤價",
+            #     "最高價",
+            #     "最低價",
+            #     '均價',
+            #     "最後委買價",
+            #     "最後委賣價",
+            # ]:
+            #     df[col] = df[col].values.astype(float)
 
-            for col in [
-                "成交股數",
-                "成交金額",
-                "成交筆數",
-            ]:
-                df[col] = df[col].values.astype(str)
+            # for col in [
+            #     "成交股數",
+            #     "成交金額",
+            #     "成交筆數",
+            # ]:
+            #     df[col] = df[col].values.astype(str)
 
 
         except Exception as e:
@@ -683,37 +684,49 @@ class csv_parser(object):
         # if self.date_time <= datetime.datetime(2008,12,31):
         #     dftwe_func = self.price_twse_2008
         # elif datetime.datetime(2009,1,1) <= self.date_time:
-        dftwe_func = self.price_twse
-        self.dftwe = dftwe_func()
-        # time.sleep(1)
-        # if self.date_time <= datetime.datetime(2004,10,27):
-        #     dfotc_func = self.price_tpex_b20041027
-        # elif datetime.datetime(2004,10,28) <= self.date_time and self.date_time <= datetime.datetime(2004,11,24):
-        #     dfotc_func = self.price_tpex_b2004
-        # elif datetime.datetime(2004,11,25) <= self.date_time and self.date_time <= datetime.datetime(2007,1,1):
-        #     dfotc_func = self.price_tpex_b2007
-        # elif datetime.datetime(2007,1,2) <= self.date_time and self.date_time <= datetime.datetime(2007,4,20):
-        #     dfotc_func = self.price_tpex_2007
-        # else:
-        dfotc_func = self.price_tpex
-        self.dfotc = dfotc_func()
-        # print(self.dftwe)
-        # print(dfotc)
-        # exit()
-        if len(self.dftwe) != 0 and len(self.dfotc) != 0:
-            price = self.merge(self.dftwe, self.dfotc, o2tp)
-            self.price = price
-            # print(type(price.loc[0]), price.loc[0]["證券名稱"])
-            self.create_stock()    
-        else:
-            if len(self.dftwe) != 0:
-                print("上櫃資料有問題", dfotc_func.__name__, self.date, self.tpex_url)
-                print("dftwe", self.dftwe, "\ndfotc", self.dfotc)
+        do_count = 0
+        while True:
+            dftwe_func = self.price_twse
+            self.dftwe = dftwe_func()
+            # time.sleep(1)
+            if self.date_time <= datetime.datetime(2006,12,31):
+                dfotc_func = self.price_tpex_b20061231
+                self.dfotc = dfotc_func()
+            # elif datetime.datetime(2004,10,28) <= self.date_time and self.date_time <= datetime.datetime(2004,11,24):
+            #     dfotc_func = self.price_tpex_b2004
+            # elif datetime.datetime(2004,11,25) <= self.date_time and self.date_time <= datetime.datetime(2007,1,1):
+            #     dfotc_func = self.price_tpex_b2007
+            # elif datetime.datetime(2007,1,2) <= self.date_time and self.date_time <= datetime.datetime(2007,4,20):
+            #     dfotc_func = self.price_tpex_2007
+            else:
+                dfotc_func = self.price_tpex
+                self.dfotc = dfotc_func()
+            # print(self.dftwe)
+            # print(self.dfotc)
+            # exit()
+            if len(self.dftwe) != 0 and len(self.dfotc) != 0:
+                price = self.merge(self.dftwe, self.dfotc, o2tp)
+                self.price = price
+                # print(self.price);exit()
+                # print(type(price.loc[0]), price.loc[0]["證券名稱"])
+                self.create_stock()    
+                break
+            elif len(self.dftwe) == 0 and len(self.dfotc) == 0:
+                return
+            elif do_count > 2:
+                if len(self.dftwe) != 0:
+                    print("上櫃資料有問題", dfotc_func.__name__, self.date, self.tpex_url)
+                    print("dftwe", self.dftwe, "\ndfotc", self.dfotc)
+                    exit()
+                if len(self.dfotc) != 0:
+                    print("上市資料有問題", dftwe_func.__name__, self.date, self.twse_url)
+                    print("dftwe", self.dftwe, "\ndfotc", self.dfotc)
+                    exit()
+                print("超過重試次數上限")
                 exit()
-            if len(self.dfotc) != 0:
-                print("上市資料有問題", dftwe_func.__name__, self.date, self.twse_url)
-                print("dftwe", self.dftwe, "\ndfotc", self.dfotc)
-                exit()
+
+            time.sleep(5)
+            do_count+=1
 
     def update_file_data(self):
         if len(self.dftwe) == 0:
@@ -804,7 +817,7 @@ if __name__ == "__main__":
     date_time = datetime.datetime.now()
     # date_time = datetime.datetime(2009,4,17)
     # date_time = datetime.datetime(2007,4,25)
-    date_time = datetime.datetime(2004,11,3)
+    # date_time = datetime.datetime(2004,11,3)
     # date_time = datetime.datetime(2011,8,9)
     # date_time = datetime.datetime(2024,5,18)
     if args.date is not None:
@@ -843,7 +856,10 @@ if __name__ == "__main__":
         if done: 
             print(date_time, " crawled!")
             date_time = date_time - datetime.timedelta(days=1)
-            continue
+            if args.daily:
+                break
+            else:
+                continue
 
         if len(args.csv) > 0:
             date_str = str(date_time).split(' ')[0].replace("-", "_")

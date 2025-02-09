@@ -10,7 +10,7 @@ parser.add_argument("--type", default='date', help="export data type: date open/
 args = parser.parse_args()
 if __name__ == "__main__":
     date_time = datetime.datetime.now()
-    date_time = datetime.datetime(2025,1,10)
+    # date_time = datetime.datetime(2025,1,10)
     # date_time = datetime.datetime(2011,8,9)
     # date_time = datetime.datetime(2007,4,21)
     # date_time = datetime.datetime(2007,4,21)

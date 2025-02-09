@@ -106,7 +106,7 @@ def dataParase(sqlrow):
     else:
         return list(sqlrow)
 
-def query_by_SQL(SQL):
+def query_by_SQL(SQL:str):
     while True:
         try:
             cursor.execute(SQL)

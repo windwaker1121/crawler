@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 parser = argparse.ArgumentParser()
 parser.add_argument("--csv", default="", help="Use exist csv file for dir.")
 parser.add_argument("--date", default=None, help="Start date")
+parser.add_argument("--daily", action='store_true', help="Start date")
 args = parser.parse_args()
 
 '''
@@ -799,7 +800,7 @@ if __name__ == "__main__":
     date_time = datetime.datetime.now()
     # date_time = datetime.datetime(2009,4,17)
     # date_time = datetime.datetime(2007,4,25)
-    date_time = datetime.datetime(2004,11,3)
+    # date_time = datetime.datetime(2004,11,3)
     # date_time = datetime.datetime(2011,8,9)
     # date_time = datetime.datetime(2024,5,18)
     if args.date is not None:
@@ -838,7 +839,10 @@ if __name__ == "__main__":
         if done: 
             print(date_time, " crawled!")
             date_time = date_time - datetime.timedelta(days=1)
-            continue
+            if args.daily:
+                break
+            else:
+                continue
 
         if len(args.csv) > 0:
             date_str = str(date_time).split(' ')[0].replace("-", "_")
@@ -886,8 +890,8 @@ if __name__ == "__main__":
         #     except Exception as e:
         #         print("Exception delete_data date", e)
         date_time = date_time - datetime.timedelta(days=1)
-    Update_Queue.put(None)
+    # Update_Queue.put(None)
     
     # df.head()
     print("exit")
-    t.join()
+    # t.join()
